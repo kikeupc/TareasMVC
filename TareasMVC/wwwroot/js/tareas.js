@@ -54,3 +54,68 @@ async function obtenerTareas() {
 
     tareaListadoViewModel.cargando(false);
 }
+
+async function actualizarOrdenTareas() {
+    const ids = obtenerIdsTareas();
+    await enviarIdsTareasAlBackend(ids);
+    
+    const arregloOrdenado = tareaListadoViewModel.tareas.sorted(function (a, b) {
+        return ids.indexOf(a.id().toString()) - ids.indexOf(b.id().toString());
+    });
+
+    tareaListadoViewModel.tareas([]);
+    tareaListadoViewModel.tareas(arregloOrdenado);
+}
+
+function obtenerIdsTareas() {
+    const ids = $("[name=titulo-tarea]").map(function () {
+        return $(this).attr("data-id");
+    }).get();
+    return ids;
+}
+
+async function enviarIdsTareasAlBackend(ids) {
+    var data = JSON.stringfy(ids);
+    await fetch(`${urlTareas}/ordenar`, {
+        method: 'POST',
+        body: data,
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
+}
+
+async function manejarClickTarea(tarea) {
+    if (tarea.esNuevo()) {
+        return;
+    }
+
+    const respuesta = await fetch(`${urlTareas}/${tarea.id()}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    }); 
+
+    if (!respuesta.ok) {
+        manejarErrorApi(respuesta);
+        return;
+    }
+
+    const json = await respuesta.json();
+    console.log(json);
+
+    tareaEditarVM.id = json.id;
+    tareaEditarVM.titulo(json.titulo);
+    tareaEditarVM.descripcion(json.descripcion);
+}
+
+
+$(function () {
+    $("#reordenable").sortable({
+        axis: 'y',
+        stop: async function () {
+            await actualizarOrdenTareas();
+        }
+    })
+})
